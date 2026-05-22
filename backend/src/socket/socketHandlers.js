@@ -4,7 +4,7 @@ const { verifyToken } = require("../utils/jwt");
 const rooms = new Map();
 // socketId -> { userId, username, roomId }
 const socketUserMap = new Map();
-// userId -> socketId (for direct calls)
+// userId -> { socketId, username } (for direct calls + online users)
 const userSocketMap = new Map();
 
 function registerSocketHandlers(io) {
@@ -21,8 +21,9 @@ function registerSocketHandlers(io) {
 
   io.on("connection", (socket) => {
     const { id: userId, username } = socket.user;
-    userSocketMap.set(String(userId), socket.id);
+    userSocketMap.set(String(userId), { socketId: socket.id, username });
     console.log(`User connected: ${username} (${socket.id})`);
+    emitOnlineUsers(io);
 
     // ─── Room Events ───────────────────────────────────────────────────────────
     socket.on("join-room", (roomId) => {
@@ -80,22 +81,26 @@ function registerSocketHandlers(io) {
     });
 
     // ─── Direct Call Events ────────────────────────────────────────────────────
-    socket.on("call-user", ({ to, offer }) => {
-      const targetSocketId = userSocketMap.get(String(to));
-      if (targetSocketId) {
-        io.to(targetSocketId).emit("incoming-call", {
+    socket.on("get-online-users", () => {
+      socket.emit("online-users", getOnlineUsers());
+    });
+
+    socket.on("call-user", ({ to, roomId }) => {
+      const target = userSocketMap.get(String(to));
+      if (target?.socketId) {
+        io.to(target.socketId).emit("incoming-call", {
           from: socket.id,
           callerId: userId,
           callerName: username,
-          offer,
+          roomId,
         });
       } else {
         socket.emit("call-failed", { message: "User is not online" });
       }
     });
 
-    socket.on("call-accepted", ({ to, answer }) => {
-      io.to(to).emit("call-accepted", { from: socket.id, answer });
+    socket.on("call-accepted", ({ to, roomId }) => {
+      io.to(to).emit("call-accepted", { from: socket.id, roomId });
     });
 
     socket.on("call-rejected", ({ to }) => {
@@ -112,10 +117,25 @@ function registerSocketHandlers(io) {
       if (userData) {
         leaveRoom(socket, userData.roomId, io);
       }
-      userSocketMap.delete(String(userId));
+      const current = userSocketMap.get(String(userId));
+      if (current?.socketId === socket.id) {
+        userSocketMap.delete(String(userId));
+      }
+      emitOnlineUsers(io);
       console.log(`User disconnected: ${username} (${socket.id})`);
     });
   });
+}
+
+function getOnlineUsers() {
+  return Array.from(userSocketMap.entries()).map(([id, data]) => ({
+    id: Number(id),
+    username: data.username,
+  }));
+}
+
+function emitOnlineUsers(io) {
+  io.emit("online-users", getOnlineUsers());
 }
 
 function leaveRoom(socket, roomId, io) {

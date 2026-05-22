@@ -82,4 +82,21 @@ async function getMe(req, res) {
   res.json(user);
 }
 
-module.exports = { register, login, getMe };
+/**
+ * GET /api/auth/users
+ */
+async function getUsers(req, res) {
+  const users = await prisma.user.findMany({
+    orderBy: { username: "asc" },
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      createdAt: true,
+    },
+  });
+
+  res.json(users);
+}
+
+module.exports = { register, login, getMe, getUsers };

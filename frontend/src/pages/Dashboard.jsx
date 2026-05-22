@@ -23,15 +23,17 @@ import IncomingCallModal from "../components/IncomingCallModal";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const { socket } = useSocket();
+  const { socket, onlineUsers } = useSocket();
   const navigate = useNavigate();
   const [rooms, setRooms] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [roomName, setRoomName] = useState("");
   const [joinId, setJoinId] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
+  const [outgoingCall, setOutgoingCall] = useState(null);
 
   const fetchRooms = async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -45,18 +47,53 @@ export default function Dashboard() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get("/auth/users");
+      setAllUsers(res.data || []);
+    } catch {
+      toast.error("Failed to load users");
+    }
+  };
+
   useEffect(() => {
     fetchRooms(true);
+    fetchUsers();
   }, []);
 
   useEffect(() => {
     if (!socket) return;
+
     socket.on("incoming-call", (data) => {
       setIncomingCall(data);
       toast("Incoming call from " + data.callerName, { icon: "📞" });
     });
-    return () => socket.off("incoming-call");
+
+    socket.on("call-accepted", ({ roomId }) => {
+      setOutgoingCall(null);
+      toast.success("Call accepted");
+      navigate(`/room/${roomId}`);
+    });
+
+    socket.on("call-rejected", () => {
+      setOutgoingCall(null);
+      toast.error("Call rejected");
+    });
+
+    socket.on("call-failed", ({ message }) => {
+      setOutgoingCall(null);
+      toast.error(message || "Call failed");
+    });
+
+    return () => {
+      socket.off("incoming-call");
+      socket.off("call-accepted");
+      socket.off("call-rejected");
+      socket.off("call-failed");
+    };
   }, [socket]);
+
+  const onlineUserIds = new Set(onlineUsers.map((u) => Number(u.id)));
 
   const createRoom = async (e) => {
     e.preventDefault();
@@ -108,6 +145,29 @@ export default function Dashboard() {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const callUser = async (targetUser) => {
+    if (!socket?.connected) {
+      toast.error("Socket disconnected");
+      return;
+    }
+    if (!onlineUserIds.has(Number(targetUser.id))) {
+      toast.error("User is offline");
+      return;
+    }
+
+    try {
+      const res = await api.post("/rooms/create", {
+        name: `Call: ${user?.username} & ${targetUser.username}`,
+      });
+      const roomId = res.data.roomId;
+      setOutgoingCall({ userId: targetUser.id, username: targetUser.username });
+      socket.emit("call-user", { to: targetUser.id, roomId });
+      toast("Calling " + targetUser.username + "...", { icon: "📞" });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not start call");
+    }
   };
 
   return (
@@ -250,6 +310,47 @@ export default function Dashboard() {
                 <li>Copy room ID and share it directly in chat.</li>
                 <li>Allow camera and microphone permissions when prompted.</li>
               </ul>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <h3 className="font-medium text-slate-100 mb-3">People</h3>
+              <div className="space-y-2 max-h-72 overflow-auto pr-1">
+                {allUsers
+                  .filter((u) => u.id !== user?.id)
+                  .map((u) => {
+                    const isOnline = onlineUserIds.has(Number(u.id));
+                    const isCalling =
+                      outgoingCall?.userId === u.id && Boolean(outgoingCall);
+                    return (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-800/40 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-100 truncate">
+                            {u.username}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {isOnline ? "Online" : "Offline"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => callUser(u)}
+                          disabled={!isOnline || isCalling}
+                          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <PhoneCall size={12} />
+                          {isCalling ? "Calling..." : "Call"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                {allUsers.filter((u) => u.id !== user?.id).length === 0 && (
+                  <p className="text-xs text-slate-500">
+                    No other users found.
+                  </p>
+                )}
+              </div>
             </div>
           </section>
 

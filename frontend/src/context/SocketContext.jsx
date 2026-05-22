@@ -38,13 +38,23 @@ export function SocketProvider({ children }) {
       reconnectionAttempts: 5,
     });
 
+    s.on("connect", () => {
+      s.emit("get-online-users");
+    });
+
+    s.on("online-users", (users) => {
+      setOnlineUsers(Array.isArray(users) ? users : []);
+    });
+
     socketRef.current = s;
     setSocket(s);
 
     return () => {
+      s.off("online-users");
       s.disconnect();
       socketRef.current = null;
       setSocket(null);
+      setOnlineUsers([]);
     };
   }, [user]);
 

@@ -1,36 +1,17 @@
-import SimplePeer from "simple-peer/simplepeer.min.js";
 import toast from "react-hot-toast";
 import { useSocket } from "../context/SocketContext";
+import { useNavigate } from "react-router-dom";
 import { Phone, PhoneOff, Video } from "lucide-react";
-import { getPeerRtcConfig } from "../utils/webrtcConfig";
 
 export default function IncomingCallModal({ call, onClose }) {
   const { socket } = useSocket();
+  const navigate = useNavigate();
 
-  const acceptCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      const peer = new SimplePeer({
-        initiator: false,
-        trickle: false,
-        stream,
-        config: getPeerRtcConfig(),
-      });
-
-      peer.on("signal", (answer) => {
-        socket.emit("call-accepted", { to: call.from, answer });
-      });
-
-      peer.signal(call.offer);
-      toast.success("Call connected");
-      onClose();
-    } catch {
-      toast.error("Could not access media devices");
-      rejectCall();
-    }
+  const acceptCall = () => {
+    socket.emit("call-accepted", { to: call.from, roomId: call.roomId });
+    toast.success("Call accepted");
+    onClose();
+    navigate(`/room/${call.roomId}`);
   };
 
   const rejectCall = () => {

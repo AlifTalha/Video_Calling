@@ -1,4 +1,4 @@
-import { cloneElement, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SimplePeer from "simple-peer/simplepeer.min.js";
 import toast from "react-hot-toast";
@@ -45,9 +45,6 @@ export default function Room() {
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordTimerRef = useRef(null);
-
-  const isDirectCallRoom = room?.name?.startsWith("Call:");
-  const primaryRemotePeer = peers[0];
 
   // Fetch room details
   useEffect(() => {
@@ -468,15 +465,9 @@ export default function Room() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Header */}
-      <header
-        className={`border-b border-white/10 px-6 py-3 flex items-center justify-between z-20 ${
-          isDirectCallRoom
-            ? "absolute inset-x-0 top-0 bg-black/35 backdrop-blur-md"
-            : "bg-gray-800"
-        }`}
-      >
+      <header className="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/")}
@@ -506,127 +497,70 @@ export default function Room() {
       </header>
 
       {/* Video Grid */}
-      <div className={`flex-1 ${isDirectCallRoom ? "relative" : "p-4"}`}>
+      <div className="flex-1 p-4">
         <div
           ref={videoGridRef}
-          className={`h-full ${
-            isDirectCallRoom
-              ? "relative w-full h-full bg-black pt-16 pb-28 sm:pt-16 sm:pb-0"
-              : `grid gap-4 ${
-                  peers.length === 0
-                    ? "grid-cols-1 max-w-2xl mx-auto"
-                    : peers.length === 1
-                      ? "grid-cols-2"
-                      : peers.length <= 3
-                        ? "grid-cols-2"
-                        : "grid-cols-3"
-                }`
+          className={`grid gap-4 h-full ${
+            peers.length === 0
+              ? "grid-cols-1 max-w-2xl mx-auto"
+              : peers.length === 1
+                ? "grid-cols-2"
+                : peers.length <= 3
+                  ? "grid-cols-2"
+                  : "grid-cols-3"
           }`}
         >
-          {isDirectCallRoom ? (
-            <>
-              {/* Main remote video fills the screen */}
-              <div className="absolute inset-0 bg-black">
-                {primaryRemotePeer ? (
-                  <RemoteVideo
-                    key={primaryRemotePeer.socketId}
-                    stream={primaryRemotePeer.stream}
-                    username={primaryRemotePeer.username}
-                    camOn={primaryRemotePeer.camOn !== false}
-                    micOn={primaryRemotePeer.micOn !== false}
-                    fullScreen
-                  />
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black">
-                    <div className="text-center text-slate-300">
-                      <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-2xl font-bold">
-                        {room?.name?.[0]?.toUpperCase() || "C"}
-                      </div>
-                      <p className="text-lg font-medium">Connecting...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Self preview like WhatsApp */}
-              <div className="absolute right-3 bottom-24 sm:right-6 sm:bottom-6 z-10 w-24 h-32 sm:w-44 sm:h-auto sm:aspect-video rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40 bg-gray-900">
-                <div className="relative w-full h-full bg-gray-800">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className={`w-full h-full object-cover ${!camOn ? "hidden" : ""}`}
-                  />
-                  {!camOn && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gray-700 flex items-center justify-center text-lg sm:text-xl font-bold text-white">
-                        {user?.username?.[0]?.toUpperCase()}
-                      </div>
-                    </div>
-                  )}
-                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg max-w-[calc(100%-1rem)] truncate">
-                    You {!micOn && "🔇"}
-                  </div>
+          {/* Local Video */}
+          <div className="relative bg-gray-800 rounded-2xl overflow-hidden aspect-video">
+            <video
+              ref={localVideoRef}
+              autoPlay
+              muted
+              playsInline
+              className={`w-full h-full object-cover ${!camOn ? "hidden" : ""}`}
+            />
+            {!camOn && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold">
+                  {user?.username?.[0]?.toUpperCase()}
                 </div>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Local Video */}
-              <div className="relative bg-gray-800 rounded-2xl overflow-hidden aspect-video">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className={`w-full h-full object-cover ${!camOn ? "hidden" : ""}`}
-                />
-                {!camOn && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold">
-                      {user?.username?.[0]?.toUpperCase()}
-                    </div>
-                  </div>
-                )}
-                <div className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
-                  You {!micOn && "🔇"}
-                </div>
-              </div>
+            )}
+            <div className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+              You {!micOn && "🔇"}
+            </div>
+          </div>
 
-              {/* Remote Videos */}
-              {peers.map(
-                ({
-                  socketId,
-                  username,
-                  stream,
-                  camOn: peerCamOn,
-                  micOn: peerMicOn,
-                }) => (
-                  <RemoteVideo
-                    key={socketId}
-                    stream={stream}
-                    username={username}
-                    camOn={peerCamOn !== false}
-                    micOn={peerMicOn !== false}
-                  />
-                ),
-              )}
-            </>
+          {/* Remote Videos */}
+          {peers.map(
+            ({
+              socketId,
+              username,
+              stream,
+              camOn: peerCamOn,
+              micOn: peerMicOn,
+            }) => (
+              <RemoteVideo
+                key={socketId}
+                stream={stream}
+                username={username}
+                camOn={peerCamOn !== false}
+                micOn={peerMicOn !== false}
+              />
+            ),
           )}
         </div>
       </div>
 
       {/* Controls */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-black/70 backdrop-blur-md px-3 py-3 sm:static sm:bg-gray-800 sm:border-gray-700 sm:px-6 sm:py-4">
-        <div className="flex items-center justify-between gap-2 sm:justify-center sm:gap-4">
+      <div className="bg-gray-800 border-t border-gray-700 px-6 py-4">
+        <div className="flex items-center justify-center gap-4">
           {/* Mic toggle */}
           <ControlBtn
             onClick={toggleMic}
             active={micOn}
             label={micOn ? "Mute" : "Unmute"}
             icon={micOn ? <Mic size={20} /> : <MicOff size={20} />}
-            compact
           />
 
           {/* Camera toggle */}
@@ -635,7 +569,6 @@ export default function Room() {
             active={camOn}
             label={camOn ? "Camera Off" : "Camera On"}
             icon={camOn ? <Video size={20} /> : <VideoOff size={20} />}
-            compact
           />
 
           {/* Screenshot */}
@@ -660,7 +593,6 @@ export default function Room() {
               active={true}
               label="Record"
               icon={<Circle size={20} className="text-red-400" />}
-              compact
             />
           )}
 
@@ -672,18 +604,17 @@ export default function Room() {
             icon={
               <Camera size={20} className={capturing ? "animate-pulse" : ""} />
             }
-            compact
           />
 
           {/* Leave */}
           <div className="flex flex-col items-center gap-1">
             <button
               onClick={leaveRoom}
-              className="p-3 sm:p-4 rounded-full bg-red-600 hover:bg-red-700 transition"
+              className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition"
             >
-              <PhoneOff size={18} className="sm:w-5 sm:h-5" />
+              <PhoneOff size={20} />
             </button>
-            <span className="text-[10px] sm:text-xs text-gray-400">Leave</span>
+            <span className="text-xs text-gray-400">Leave</span>
           </div>
         </div>
       </div>
@@ -691,13 +622,7 @@ export default function Room() {
   );
 }
 
-function RemoteVideo({
-  stream,
-  username,
-  camOn = true,
-  micOn = true,
-  fullScreen = false,
-}) {
+function RemoteVideo({ stream, username, camOn = true, micOn = true }) {
   const videoRef = useRef();
 
   useEffect(() => {
@@ -709,13 +634,7 @@ function RemoteVideo({
   const showVideo = stream && camOn;
 
   return (
-    <div
-      className={`relative overflow-hidden ${
-        fullScreen
-          ? "w-full h-full bg-black"
-          : "bg-gray-800 rounded-2xl aspect-video"
-      }`}
-    >
+    <div className="relative bg-gray-800 rounded-2xl overflow-hidden aspect-video">
       {/* Video element — always mounted when stream exists so it stays connected */}
       {stream && (
         <video
@@ -730,7 +649,7 @@ function RemoteVideo({
 
       {/* Avatar overlay when camera is off or no stream yet */}
       {!showVideo && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold text-white">
             {username?.[0]?.toUpperCase()}
           </div>
@@ -755,24 +674,20 @@ function RemoteVideo({
   );
 }
 
-function ControlBtn({ onClick, active, icon, label, compact = false }) {
+function ControlBtn({ onClick, active, icon, label }) {
   return (
-    <div
-      className={`flex flex-col items-center ${compact ? "gap-0.5" : "gap-1"}`}
-    >
+    <div className="flex flex-col items-center gap-1">
       <button
         onClick={onClick}
         className={`p-4 rounded-full transition ${
           active
             ? "bg-gray-700 hover:bg-gray-600"
             : "bg-red-600 hover:bg-red-700"
-        } ${compact ? "p-3 sm:p-4" : ""}`}
+        }`}
       >
-        {compact ? cloneElement(icon, { size: 18 }) : icon}
+        {icon}
       </button>
-      <span className="text-[10px] sm:text-xs text-gray-400 max-w-[4.5rem] text-center leading-tight">
-        {label}
-      </span>
+      <span className="text-xs text-gray-400">{label}</span>
     </div>
   );
 }

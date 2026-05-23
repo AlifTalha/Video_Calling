@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { cloneElement, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import SimplePeer from "simple-peer/simplepeer.min.js";
 import toast from "react-hot-toast";
@@ -511,7 +511,7 @@ export default function Room() {
           ref={videoGridRef}
           className={`h-full ${
             isDirectCallRoom
-              ? "relative w-full h-full bg-black"
+              ? "relative w-full h-full bg-black pt-16 pb-28 sm:pt-16 sm:pb-0"
               : `grid gap-4 ${
                   peers.length === 0
                     ? "grid-cols-1 max-w-2xl mx-auto"
@@ -549,7 +549,7 @@ export default function Room() {
               </div>
 
               {/* Self preview like WhatsApp */}
-              <div className="absolute right-4 bottom-24 sm:right-6 sm:bottom-6 z-10 w-32 sm:w-44 md:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40 bg-gray-900">
+              <div className="absolute right-3 bottom-24 sm:right-6 sm:bottom-6 z-10 w-24 h-32 sm:w-44 sm:h-auto sm:aspect-video rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40 bg-gray-900">
                 <div className="relative w-full h-full bg-gray-800">
                   <video
                     ref={localVideoRef}
@@ -560,12 +560,12 @@ export default function Room() {
                   />
                   {!camOn && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-                      <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center text-xl font-bold text-white">
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gray-700 flex items-center justify-center text-lg sm:text-xl font-bold text-white">
                         {user?.username?.[0]?.toUpperCase()}
                       </div>
                     </div>
                   )}
-                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg">
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg max-w-[calc(100%-1rem)] truncate">
                     You {!micOn && "🔇"}
                   </div>
                 </div>
@@ -618,14 +618,15 @@ export default function Room() {
       </div>
 
       {/* Controls */}
-      <div className="bg-gray-800 border-t border-gray-700 px-6 py-4">
-        <div className="flex items-center justify-center gap-4">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-black/70 backdrop-blur-md px-3 py-3 sm:static sm:bg-gray-800 sm:border-gray-700 sm:px-6 sm:py-4">
+        <div className="flex items-center justify-between gap-2 sm:justify-center sm:gap-4">
           {/* Mic toggle */}
           <ControlBtn
             onClick={toggleMic}
             active={micOn}
             label={micOn ? "Mute" : "Unmute"}
             icon={micOn ? <Mic size={20} /> : <MicOff size={20} />}
+            compact
           />
 
           {/* Camera toggle */}
@@ -634,6 +635,7 @@ export default function Room() {
             active={camOn}
             label={camOn ? "Camera Off" : "Camera On"}
             icon={camOn ? <Video size={20} /> : <VideoOff size={20} />}
+            compact
           />
 
           {/* Screenshot */}
@@ -658,6 +660,7 @@ export default function Room() {
               active={true}
               label="Record"
               icon={<Circle size={20} className="text-red-400" />}
+              compact
             />
           )}
 
@@ -669,17 +672,18 @@ export default function Room() {
             icon={
               <Camera size={20} className={capturing ? "animate-pulse" : ""} />
             }
+            compact
           />
 
           {/* Leave */}
           <div className="flex flex-col items-center gap-1">
             <button
               onClick={leaveRoom}
-              className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition"
+              className="p-3 sm:p-4 rounded-full bg-red-600 hover:bg-red-700 transition"
             >
-              <PhoneOff size={20} />
+              <PhoneOff size={18} className="sm:w-5 sm:h-5" />
             </button>
-            <span className="text-xs text-gray-400">Leave</span>
+            <span className="text-[10px] sm:text-xs text-gray-400">Leave</span>
           </div>
         </div>
       </div>
@@ -751,20 +755,24 @@ function RemoteVideo({
   );
 }
 
-function ControlBtn({ onClick, active, icon, label }) {
+function ControlBtn({ onClick, active, icon, label, compact = false }) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div
+      className={`flex flex-col items-center ${compact ? "gap-0.5" : "gap-1"}`}
+    >
       <button
         onClick={onClick}
         className={`p-4 rounded-full transition ${
           active
             ? "bg-gray-700 hover:bg-gray-600"
             : "bg-red-600 hover:bg-red-700"
-        }`}
+        } ${compact ? "p-3 sm:p-4" : ""}`}
       >
-        {icon}
+        {compact ? cloneElement(icon, { size: 18 }) : icon}
       </button>
-      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-[10px] sm:text-xs text-gray-400 max-w-[4.5rem] text-center leading-tight">
+        {label}
+      </span>
     </div>
   );
 }

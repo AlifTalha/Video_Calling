@@ -46,6 +46,9 @@ export default function Room() {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const recordTimerRef = useRef(null);
 
+  const isDirectCallRoom = room?.name?.startsWith("Call:");
+  const primaryRemotePeer = peers[0];
+
   // Fetch room details
   useEffect(() => {
     api
@@ -465,9 +468,15 @@ export default function Room() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col">
+    <div className="min-h-screen bg-black flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+      <header
+        className={`border-b border-white/10 px-6 py-3 flex items-center justify-between z-20 ${
+          isDirectCallRoom
+            ? "absolute inset-x-0 top-0 bg-black/35 backdrop-blur-md"
+            : "bg-gray-800"
+        }`}
+      >
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/")}
@@ -497,57 +506,113 @@ export default function Room() {
       </header>
 
       {/* Video Grid */}
-      <div className="flex-1 p-4">
+      <div className={`flex-1 ${isDirectCallRoom ? "relative" : "p-4"}`}>
         <div
           ref={videoGridRef}
-          className={`grid gap-4 h-full ${
-            peers.length === 0
-              ? "grid-cols-1 max-w-2xl mx-auto"
-              : peers.length === 1
-                ? "grid-cols-2"
-                : peers.length <= 3
-                  ? "grid-cols-2"
-                  : "grid-cols-3"
+          className={`h-full ${
+            isDirectCallRoom
+              ? "relative w-full h-full bg-black"
+              : `grid gap-4 ${
+                  peers.length === 0
+                    ? "grid-cols-1 max-w-2xl mx-auto"
+                    : peers.length === 1
+                      ? "grid-cols-2"
+                      : peers.length <= 3
+                        ? "grid-cols-2"
+                        : "grid-cols-3"
+                }`
           }`}
         >
-          {/* Local Video */}
-          <div className="relative bg-gray-800 rounded-2xl overflow-hidden aspect-video">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className={`w-full h-full object-cover ${!camOn ? "hidden" : ""}`}
-            />
-            {!camOn && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold">
-                  {user?.username?.[0]?.toUpperCase()}
+          {isDirectCallRoom ? (
+            <>
+              {/* Main remote video fills the screen */}
+              <div className="absolute inset-0 bg-black">
+                {primaryRemotePeer ? (
+                  <RemoteVideo
+                    key={primaryRemotePeer.socketId}
+                    stream={primaryRemotePeer.stream}
+                    username={primaryRemotePeer.username}
+                    camOn={primaryRemotePeer.camOn !== false}
+                    micOn={primaryRemotePeer.micOn !== false}
+                    fullScreen
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-black">
+                    <div className="text-center text-slate-300">
+                      <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-2xl font-bold">
+                        {room?.name?.[0]?.toUpperCase() || "C"}
+                      </div>
+                      <p className="text-lg font-medium">Connecting...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Self preview like WhatsApp */}
+              <div className="absolute right-4 bottom-24 sm:right-6 sm:bottom-6 z-10 w-32 sm:w-44 md:w-56 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/40 bg-gray-900">
+                <div className="relative w-full h-full bg-gray-800">
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className={`w-full h-full object-cover ${!camOn ? "hidden" : ""}`}
+                  />
+                  {!camOn && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                      <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center text-xl font-bold text-white">
+                        {user?.username?.[0]?.toUpperCase()}
+                      </div>
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-lg">
+                    You {!micOn && "🔇"}
+                  </div>
                 </div>
               </div>
-            )}
-            <div className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
-              You {!micOn && "🔇"}
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Local Video */}
+              <div className="relative bg-gray-800 rounded-2xl overflow-hidden aspect-video">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className={`w-full h-full object-cover ${!camOn ? "hidden" : ""}`}
+                />
+                {!camOn && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold">
+                      {user?.username?.[0]?.toUpperCase()}
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+                  You {!micOn && "🔇"}
+                </div>
+              </div>
 
-          {/* Remote Videos */}
-          {peers.map(
-            ({
-              socketId,
-              username,
-              stream,
-              camOn: peerCamOn,
-              micOn: peerMicOn,
-            }) => (
-              <RemoteVideo
-                key={socketId}
-                stream={stream}
-                username={username}
-                camOn={peerCamOn !== false}
-                micOn={peerMicOn !== false}
-              />
-            ),
+              {/* Remote Videos */}
+              {peers.map(
+                ({
+                  socketId,
+                  username,
+                  stream,
+                  camOn: peerCamOn,
+                  micOn: peerMicOn,
+                }) => (
+                  <RemoteVideo
+                    key={socketId}
+                    stream={stream}
+                    username={username}
+                    camOn={peerCamOn !== false}
+                    micOn={peerMicOn !== false}
+                  />
+                ),
+              )}
+            </>
           )}
         </div>
       </div>
@@ -622,7 +687,13 @@ export default function Room() {
   );
 }
 
-function RemoteVideo({ stream, username, camOn = true, micOn = true }) {
+function RemoteVideo({
+  stream,
+  username,
+  camOn = true,
+  micOn = true,
+  fullScreen = false,
+}) {
   const videoRef = useRef();
 
   useEffect(() => {
@@ -634,7 +705,13 @@ function RemoteVideo({ stream, username, camOn = true, micOn = true }) {
   const showVideo = stream && camOn;
 
   return (
-    <div className="relative bg-gray-800 rounded-2xl overflow-hidden aspect-video">
+    <div
+      className={`relative overflow-hidden ${
+        fullScreen
+          ? "w-full h-full bg-black"
+          : "bg-gray-800 rounded-2xl aspect-video"
+      }`}
+    >
       {/* Video element — always mounted when stream exists so it stays connected */}
       {stream && (
         <video
@@ -649,7 +726,7 @@ function RemoteVideo({ stream, username, camOn = true, micOn = true }) {
 
       {/* Avatar overlay when camera is off or no stream yet */}
       {!showVideo && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/70">
           <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-bold text-white">
             {username?.[0]?.toUpperCase()}
           </div>
